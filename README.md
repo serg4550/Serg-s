@@ -1,0 +1,2 @@
+# Serg-s
+pyton study
