@@ -1,73 +1,69 @@
-#pip install requests beautifulsoup4
+import sqlite3
+
+
+conn = sqlite3.connect('weather.db')
+
+c = conn.cursor()
+
+
+c.execute('''CREATE TABLE IF NOT EXISTS weather
+
+            (date_time TEXR, temperature REAL)''')
+
+
+conn.commit()
+
+conn.close()
+
+
+import requests
+
+
+url = 'https://ua.sinoptik.ua/погода-дніпро'
+
+response = requests.get(url)
+
+
+if response.status_code == 200:
+
+   html = response.content
+
+else:
+
+   print('Не вдалося отримати сторінку')
+
+
+from bs4 import BeautifulSoup #Почемуто не загружает ее, я перепробывал все
+
+
+soup = BeautifulSoup(html, 'html.parser')
+
+today_weather = soup.find('div', {'class': 'weatherToday'}).find('div', {'class': 'temperature'}).text
+
+today_temperature = int(today_weather.split('°')[0])
+
+
+print(f"Температура сьогодні: {today_temperature}°C")
+
+
+import datetime
 
 import sqlite3
-import requests
-from bs4 import BeautifulSoup
-from datetime import datetime
-import time
 
 
+temperature = today_temperature
 
-def create_database():
-    conn = sqlite3.connect('weather.db')
-    cursor = conn.cursor()
+date_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
+conn = sqlite3.connect('weather.db')
 
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS weather (
-            date TEXT,
-            time TEXT,
-            temperature REAL
-        )
-    ''')
-
-    conn.commit()
-    conn.close()
+c = conn.cursor()
 
 
-def get_temperature(city):
-    # Замените на актуальный URL для вашего города
-    url = f'https://weather.com/ru-RU/weather/today/l/f3155899c90b24c622f264da14541544c8519a80d84ce07fe2b4529bd511e3bf{city}'
-    response = requests.get(url)
+c.execute("INSERT INTO weather VkLUES (?, ?)", (date_time, temperature))
 
 
+conn.commit()
 
-    # Найдите нужный элемент на странице, который содержит температуру
-    temperature_element = soup.find('span', class_='CurrentConditions--tempValue--3a50n')
+conn.close()
 
-    if temperature_element:
-        temperature = temperature_element.text
-        return float(temperature.replace('°', '').replace(',', '.'))
-    else:
-        print("Не удалось найти элемент с температурой.")
-        return None
-
-
-# Функция для обновления погоды
-def update_weather(city):
-    conn = sqlite3.connect('weather.db')
-    cursor = conn.cursor()
-
-    while True:
-        temperature = get_temperature(city)
-
-        if temperature is not None:
-            now = datetime.now()
-            date_str = now.strftime('%Y-%m-%d')
-            time_str = now.strftime('%H:%M:%S')
-
-            cursor.execute('''
-                INSERT INTO weather (date, time, temperature)
-                VALUES (?, ?, ?)
-            ''', (date_str, time_str, temperature))
-
-            conn.commit()
-            print(f'Обновлено: {date_str} {time_str} - {temperature}°C')
-
-        time.sleep(1800)  # Пауза на 30 минут
-
-
-if __name__ == '__main__':
-    create_database()
-    city = 'Dnepropetrovsk'  # Замените на актуальный код города
-    update_weather(city)
